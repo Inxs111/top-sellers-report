@@ -46,7 +46,7 @@
   <div class="sub" id="meta">Loading…</div>
   <div class="stats">
     <div class="stat"><div class="n" id="sProducts">0</div><div class="l">Products</div></div>
-    <div class="stat"><div class="n" id="sUnits">0</div><div class="l">Units sold (7d)</div></div>
+    <div class="stat"><div class="n" id="sUnits">0</div><div class="l" id="sUnitsLabel">Units sold (7d)</div></div>
     <div class="stat"><div class="n" id="sStock">0</div><div class="l">Stock left (total)</div></div>
   </div>
 </header>
@@ -72,6 +72,8 @@
 // ---- Supabase connection (publishable key — safe to expose; read-only via RLS) ----
 var SUPABASE_URL = "https://dpjospxkbnpyyqaavkfa.supabase.co";
 var SUPABASE_KEY = "sb_publishable_UTV8Kbm1XJwjOruyXVzRiw_YFq2IOjW";
+var PERIOD = (new URLSearchParams(location.search).get('period')==='1d')?'1d':'7d';
+var PERIOD_TITLE = PERIOD==='1d' ? 'Yesterday' : 'Last 7 Days';
 
 function img(id){return "https://m.media-amazon.com/images/I/"+id+"._SL160_.jpg";}
 function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
@@ -85,12 +87,16 @@ function api(path){
 
 function load(){
   Promise.all([
-    api("top_sellers?select=rank,name,asin,units,image_id,available,inbound,reserved,stock&order=units.desc,rank.asc"),
-    api("report_meta?select=generated_at,range_label,total_units,product_count&id=eq.1")
+    api("top_sellers?select=rank,name,asin,units,image_id,available,inbound,reserved,stock&period=eq."+PERIOD+"&order=units.desc,rank.asc"),
+    api("report_meta?select=generated_at,range_label,total_units,product_count&period=eq."+PERIOD)
   ]).then(function(res){
     DATA = res[0]||[];
     META = (res[1]&&res[1][0])?res[1][0]:{};
     maxUnits = DATA.reduce(function(a,d){return Math.max(a,d.units);},0)||1;
+    var rl = META.range_label || PERIOD_TITLE;
+    document.querySelector("h1").textContent = "Top Sellers by Profit — " + rl;
+    document.title = "Top Sellers — " + rl;
+    document.getElementById("sUnitsLabel").textContent = "Units sold (" + (PERIOD==="1d"?"yest.":"7d") + ")";
     document.getElementById("meta").textContent="Source: Seller Toolkit · Top Sellers by Profit · Generated "+(META.generated_at||"");
     document.getElementById("sProducts").textContent=(META.product_count!=null?META.product_count:DATA.length);
     document.getElementById("sUnits").textContent=(META.total_units!=null?META.total_units:DATA.reduce(function(a,d){return a+d.units;},0));
