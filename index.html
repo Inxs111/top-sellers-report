@@ -42,9 +42,27 @@
   .bar{height:6px;background:var(--accent);border-radius:4px;margin-top:5px;}
   .copied{color:var(--accent2)!important;border-color:var(--accent2)!important;}
   footer{padding:18px 28px;color:var(--muted);font-size:12px;border-top:1px solid var(--line);}
+  .gate{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:1000;}
+  .gate.hide{display:none;}
+  .gatebox{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:28px;width:300px;text-align:center;}
+  .gatebox h2{margin:0 0 6px;font-size:18px;}
+  .gatebox p{color:var(--muted);font-size:13px;margin:0 0 16px;}
+  .gatebox input{width:100%;background:var(--bg);border:1px solid var(--line);color:var(--text);padding:10px 12px;border-radius:8px;font-size:14px;outline:none;}
+  .gatebox input:focus{border-color:var(--accent);}
+  .gatebox button{width:100%;margin-top:10px;background:var(--accent);border:none;color:#fff;padding:10px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;}
+  .gateerr{color:#ff6b6b;font-size:12px;min-height:14px;margin-top:8px;}
 </style>
 </head>
 <body>
+<div class="gate" id="gate">
+  <div class="gatebox">
+    <h2>INZ Top Sellers</h2>
+    <p>Enter the access code to view the report.</p>
+    <input type="password" id="gatepw" placeholder="Access code" autocomplete="off">
+    <button id="gatebtn">Unlock</button>
+    <div class="gateerr" id="gateerr"></div>
+  </div>
+</div>
 <header>
   <h1 id="title">Top Sellers by Profit</h1>
   <div class="sub" id="meta">Loading…</div>
@@ -88,6 +106,16 @@ var SUPABASE_KEY = "sb_publishable_UTV8Kbm1XJwjOruyXVzRiw_YFq2IOjW";
 var PERIOD = (new URLSearchParams(location.search).get('period')==='1d')?'1d':'7d';
 var DATA=[], META={}, sortKey="units", sortDir=-1, filter="", maxUnits=1;
 var body=document.getElementById("body");
+
+var ACCESS_CODE = "kq7m4t";
+(function(){
+  var gate=document.getElementById("gate");
+  try{ if(localStorage.getItem("tsr_ok")==="1") gate.classList.add("hide"); }catch(e){}
+  function unlock(){ gate.classList.add("hide"); try{localStorage.setItem("tsr_ok","1");}catch(e){} }
+  function tryPw(){ var v=document.getElementById("gatepw").value.trim(); if(v===ACCESS_CODE){document.getElementById("gateerr").textContent="";unlock();} else {document.getElementById("gateerr").textContent="Incorrect code";} }
+  document.getElementById("gatebtn").addEventListener("click",tryPw);
+  document.getElementById("gatepw").addEventListener("keydown",function(e){if(e.key==="Enter")tryPw();});
+})();
 
 function img(id){return "https://m.media-amazon.com/images/I/"+id+"._SL160_.jpg";}
 function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
