@@ -61,7 +61,7 @@
       <th>Image</th>
       <th data-k="name">Product</th>
       <th data-k="asin">ASIN</th>
-      <th data-k="units" class="units-cell">Units 7d</th>
+      <th data-k="units" class="units-cell" id="thUnits">Units 7d</th>
       <th data-k="stock" class="units-cell">Stock left</th>
     </tr></thead>
     <tbody id="body"></tbody>
@@ -97,6 +97,7 @@ function load(){
     document.querySelector("h1").textContent = "Top Sellers by Profit — " + rl;
     document.title = "Top Sellers — " + rl;
     document.getElementById("sUnitsLabel").textContent = "Units sold (" + (PERIOD==="1d"?"yest.":"7d") + ")";
+    document.getElementById("thUnits").textContent = (PERIOD==="1d"?"Units (yest.)":"Units 7d");
     document.getElementById("meta").textContent="Source: Seller Toolkit · Top Sellers by Profit · Generated "+(META.generated_at||"");
     document.getElementById("sProducts").textContent=(META.product_count!=null?META.product_count:DATA.length);
     document.getElementById("sUnits").textContent=(META.total_units!=null?META.total_units:DATA.reduce(function(a,d){return a+d.units;},0));
