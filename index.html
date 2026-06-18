@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Top Sellers — Last 7 Days</title>
+<style>
+  :root{--bg:#0f1115;--card:#1a1d24;--line:#2a2e38;--text:#e7e9ee;--muted:#9aa0ad;--accent:#4f8cff;--accent2:#23c08a;--chip:#242833;}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+  header{padding:24px 28px 16px;border-bottom:1px solid var(--line);}
+  h1{margin:0;font-size:22px;font-weight:700;}
+  .sub{color:var(--muted);font-size:14px;margin-top:6px;}
+  .stats{display:flex;gap:14px;flex-wrap:wrap;margin-top:16px;}
+  .stat{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 16px;}
+  .stat .n{font-size:20px;font-weight:700;}
+  .stat .l{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;}
+  .toolbar{padding:16px 28px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;}
+  input[type=search]{background:var(--card);border:1px solid var(--line);color:var(--text);padding:10px 14px;border-radius:8px;font-size:14px;min-width:260px;outline:none;}
+  input[type=search]:focus{border-color:var(--accent);}
+  .hint{color:var(--muted);font-size:13px;}
+  .wrap{padding:0 28px 40px;}
+  table{width:100%;border-collapse:collapse;}
+  th,td{text-align:left;padding:12px 10px;border-bottom:1px solid var(--line);vertical-align:middle;}
+  th{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;cursor:pointer;user-select:none;white-space:nowrap;position:sticky;top:0;background:var(--bg);}
+  th:hover{color:var(--text);}
+  tr:hover td{background:#161922;}
+  .rank{color:var(--muted);font-variant-numeric:tabular-nums;width:34px;}
+  .thumb{width:52px;height:52px;object-fit:contain;background:#fff;border-radius:6px;}
+  .name{font-weight:600;line-height:1.35;max-width:520px;}
+  .asin{display:inline-flex;align-items:center;gap:8px;}
+  .asin code{background:var(--chip);padding:4px 8px;border-radius:6px;font-size:13px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:#cfe0ff;}
+  .copy,.amz{border:1px solid var(--line);background:transparent;color:var(--muted);border-radius:6px;padding:3px 8px;font-size:12px;cursor:pointer;text-decoration:none;}
+  .copy:hover{color:var(--text);border-color:var(--accent);}
+  .amz:hover{color:#ffb84d;border-color:#ffb84d;}
+  .units{font-weight:700;font-size:16px;font-variant-numeric:tabular-nums;text-align:right;}
+  .units-cell{text-align:right;width:90px;}
+  .bar{height:6px;background:var(--accent);border-radius:4px;margin-top:5px;}
+  .copied{color:var(--accent2)!important;border-color:var(--accent2)!important;}
+  footer{padding:18px 28px;color:var(--muted);font-size:12px;border-top:1px solid var(--line);}
+</style>
+</head>
+<body>
+<header>
+  <h1>Top Sellers by Profit — Last 7 Days</h1>
+  <div class="sub" id="meta">Loading…</div>
+  <div class="stats">
+    <div class="stat"><div class="n" id="sProducts">0</div><div class="l">Products</div></div>
+    <div class="stat"><div class="n" id="sUnits">0</div><div class="l">Units sold (7d)</div></div>
+  </div>
+</header>
+<div class="toolbar">
+  <input type="search" id="q" placeholder="Search product or ASIN…" autocomplete="off">
+  <span class="hint">Click a column header to sort · Click an ASIN to copy · &#8599; opens the Amazon listing</span>
+</div>
+<div class="wrap">
+  <table id="tbl">
+    <thead><tr>
+      <th data-k="rank">#</th>
+      <th>Image</th>
+      <th data-k="name">Product</th>
+      <th data-k="asin">ASIN</th>
+      <th data-k="units" class="units-cell">Units 7d</th>
+    </tr></thead>
+    <tbody id="body"></tbody>
+  </table>
+</div>
+<footer id="foot"></footer>
+<script>
+// ---- Supabase connection (publishable key — safe to expose; read-only via RLS) ----
+var SUPABASE_URL = "https://dpjospxkbnpyyqaavkfa.supabase.co";
+var SUPABASE_KEY = "sb_publishable_UTV8Kbm1XJwjOruyXVzRiw_YFq2IOjW";
+
+function img(id){return "https://m.media-amazon.com/images/I/"+id+"._SL160_.jpg";}
+function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+
+var DATA=[], META={}, sortKey="units", sortDir=-1, filter="", maxUnits=1;
+var body=document.getElementById("body");
+
+function api(path){
+  return fetch(SUPABASE_URL+"/rest/v1/"+path,{headers:{apikey:SUPABASE_KEY,Authorization:"Bearer "+SUPABASE_KEY}}).then(function(r){return r.json();});
+}
+
+function load(){
+  Promise.all([
+    api("top_sellers?select=rank,name,asin,units,image_id&order=units.desc,rank.asc"),
+    api("report_meta?select=generated_at,range_label,total_units,product_count&id=eq.1")
+  ]).then(function(res){
+    DATA = res[0]||[];
+    META = (res[1]&&res[1][0])?res[1][0]:{};
+    maxUnits = DATA.reduce(function(a,d){return Math.max(a,d.units);},0)||1;
+    document.getElementById("meta").textContent="Source: Seller Toolkit · Top Sellers by Profit · Generated "+(META.generated_at||"");
+    document.getElementById("sProducts").textContent=(META.product_count!=null?META.product_count:DATA.length);
+    document.getElementById("sUnits").textContent=(META.total_units!=null?META.total_units:DATA.reduce(function(a,d){return a+d.units;},0));
+    document.getElementById("foot").textContent=(META.product_count||DATA.length)+" products · "+(META.total_units||"")+" total units in the last 7 days · Generated "+(META.generated_at||"");
+    render();
+  }).catch(function(e){document.getElementById("meta").textContent="Could not load data: "+e;});
+}
+
+function render(){
+  var f=filter.trim().toLowerCase();
+  var rows=DATA.filter(function(d){return !f||d.name.toLowerCase().indexOf(f)>=0||d.asin.toLowerCase().indexOf(f)>=0;});
+  rows.sort(function(a,b){var va=a[sortKey],vb=b[sortKey];if(typeof va==="string"){va=va.toLowerCase();vb=vb.toLowerCase();}return va<vb?-1*sortDir:va>vb?1*sortDir:0;});
+  var h="";
+  for(var i=0;i<rows.length;i++){var d=rows[i];var w=Math.max(6,Math.round(d.units/maxUnits*100));
+    h+='<tr><td class="rank">'+d.rank+'</td>'+'<td><img class="thumb" src="'+img(d.image_id)+'" loading="lazy" alt="" onerror="this.remove()"></td>'+'<td><div class="name">'+esc(d.name)+'</div></td>'+'<td><span class="asin"><code>'+d.asin+'</code> <button class="copy" data-a="'+d.asin+'">Copy</button> <a class="amz" href="https://www.amazon.co.uk/dp/'+d.asin+'" target="_blank" rel="noopener">&#8599;</a></span></td>'+'<td class="units-cell"><div class="units">'+d.units+'</div><div class="bar" style="width:'+w+'%"></div></td></tr>';}
+  body.innerHTML=h;
+}
+
+var ths=document.querySelectorAll("th[data-k]");
+for(var j=0;j<ths.length;j++){ths[j].addEventListener("click",function(){var k=this.getAttribute("data-k");if(sortKey===k){sortDir*=-1;}else{sortKey=k;sortDir=(k==="units")?-1:1;}render();});}
+document.getElementById("q").addEventListener("input",function(e){filter=e.target.value;render();});
+body.addEventListener("click",function(e){var b=e.target.closest(".copy");if(!b)return;navigator.clipboard.writeText(b.getAttribute("data-a"));var old=b.textContent;b.textContent="Copied";b.classList.add("copied");setTimeout(function(){b.textContent=old;b.classList.remove("copied");},1200);});
+load();
+</script>
+</body>
+</html>
