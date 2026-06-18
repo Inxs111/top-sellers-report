@@ -47,6 +47,7 @@
   <div class="stats">
     <div class="stat"><div class="n" id="sProducts">0</div><div class="l">Products</div></div>
     <div class="stat"><div class="n" id="sUnits">0</div><div class="l">Units sold (7d)</div></div>
+    <div class="stat"><div class="n" id="sStock">0</div><div class="l">Stock left (total)</div></div>
   </div>
 </header>
 <div class="toolbar">
@@ -61,6 +62,7 @@
       <th data-k="name">Product</th>
       <th data-k="asin">ASIN</th>
       <th data-k="units" class="units-cell">Units 7d</th>
+      <th data-k="stock" class="units-cell">Stock left</th>
     </tr></thead>
     <tbody id="body"></tbody>
   </table>
@@ -83,7 +85,7 @@ function api(path){
 
 function load(){
   Promise.all([
-    api("top_sellers?select=rank,name,asin,units,image_id&order=units.desc,rank.asc"),
+    api("top_sellers?select=rank,name,asin,units,image_id,available,inbound,reserved,stock&order=units.desc,rank.asc"),
     api("report_meta?select=generated_at,range_label,total_units,product_count&id=eq.1")
   ]).then(function(res){
     DATA = res[0]||[];
@@ -92,6 +94,7 @@ function load(){
     document.getElementById("meta").textContent="Source: Seller Toolkit · Top Sellers by Profit · Generated "+(META.generated_at||"");
     document.getElementById("sProducts").textContent=(META.product_count!=null?META.product_count:DATA.length);
     document.getElementById("sUnits").textContent=(META.total_units!=null?META.total_units:DATA.reduce(function(a,d){return a+d.units;},0));
+    document.getElementById("sStock").textContent=DATA.reduce(function(a,d){return a+(d.stock||0);},0).toLocaleString();
     document.getElementById("foot").textContent=(META.product_count||DATA.length)+" products · "+(META.total_units||"")+" total units in the last 7 days · Generated "+(META.generated_at||"");
     render();
   }).catch(function(e){document.getElementById("meta").textContent="Could not load data: "+e;});
@@ -103,7 +106,7 @@ function render(){
   rows.sort(function(a,b){var va=a[sortKey],vb=b[sortKey];if(typeof va==="string"){va=va.toLowerCase();vb=vb.toLowerCase();}return va<vb?-1*sortDir:va>vb?1*sortDir:0;});
   var h="";
   for(var i=0;i<rows.length;i++){var d=rows[i];var w=Math.max(6,Math.round(d.units/maxUnits*100));
-    h+='<tr><td class="rank">'+d.rank+'</td>'+'<td><img class="thumb" src="'+img(d.image_id)+'" loading="lazy" alt="" onerror="this.remove()"></td>'+'<td><div class="name">'+esc(d.name)+'</div></td>'+'<td><span class="asin"><code>'+d.asin+'</code> <button class="copy" data-a="'+d.asin+'">Copy</button> <a class="amz" href="https://www.amazon.co.uk/dp/'+d.asin+'" target="_blank" rel="noopener">&#8599;</a></span></td>'+'<td class="units-cell"><div class="units">'+d.units+'</div><div class="bar" style="width:'+w+'%"></div></td></tr>';}
+    h+='<tr><td class="rank">'+d.rank+'</td>'+'<td><img class="thumb" src="'+img(d.image_id)+'" loading="lazy" alt="" onerror="this.remove()"></td>'+'<td><div class="name">'+esc(d.name)+'</div></td>'+'<td><span class="asin"><code>'+d.asin+'</code> <button class="copy" data-a="'+d.asin+'">Copy</button> <a class="amz" href="https://www.amazon.co.uk/dp/'+d.asin+'" target="_blank" rel="noopener">&#8599;</a></span></td>'+'<td class="units-cell"><div class="units">'+d.units+'</div><div class="bar" style="width:'+w+'%"></div></td>'+'<td class="units-cell"><div class="units">'+(d.stock!=null?d.stock:0)+'</div><div class="hint" style="font-size:11px">A '+(d.available||0)+' · I '+(d.inbound||0)+' · R '+(d.reserved||0)+'</div></td></tr>';}
   body.innerHTML=h;
 }
 
